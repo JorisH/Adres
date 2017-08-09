@@ -14,6 +14,32 @@ $app->get('/', function () use ($app) {
 ->bind('homepage')
 ;
 
+$app->get('/autocomplete', function (Request $request) use ($app) {
+  $postcode = $request->get('postcode');
+  $straatnaam = $request->get('straat');
+  if (!$postcode && !$straatnaam) return new JsonResponse();
+
+  if ($postcode && $straatnaam){
+    $sql = "SELECT * FROM straat WHERE postcode LIKE :postcode AND naam LIKE :straatnaam";
+    $result = $app['db']->fetchAll($sql, [
+      'postcode' => $postcode.'%',
+      'straatnaam' => $straatnaam.'%'
+    ]);
+  } else if ($postcode) {
+    $sql = "SELECT * FROM gemeente WHERE code LIKE :postcode";
+    $result = $app['db']->fetchAll($sql, [
+      'postcode' => $postcode."%",
+    ]);
+  } else {
+    $sql = "SELECT * FROM straat WHERE naam LIKE :straatnaam";
+    $result = $app['db']->fetchAll($sql, [
+      'straatnaam' => $straatnaam.'%'
+    ]);
+  }
+
+  return new JsonResponse($result);
+});
+
 $app->error(function (\Exception $e, Request $request, $code) use ($app) {
     if ($app['debug']) {
         return;
