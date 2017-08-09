@@ -1,6 +1,6 @@
 <?php
 
-$app['db.options'] = [
+$dbOptions = [
   'driver'   => 'pdo_mysql',
   'dbname' => 'dbname',       // The name of the database to connect to.
   'host' => 'localhost',      // The host of the database to connect to. Defaults to localhost.
@@ -8,3 +8,5 @@ $app['db.options'] = [
   'password' => 'password',   // The password of the database to connect to.
   'charset' => 'UTF8'        // Specifies the charset used when connecting to the database.
 ];
+
+return $dbOptions;

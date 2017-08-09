@@ -17,12 +17,8 @@ $app['twig'] = $app->extend('twig', function ($twig, $app) {
 
     return $twig;
 });
-
-// include de db configuration
-require __DIR__.'/../config/db.php';
-
 $app->register(new DoctrineServiceProvider(), array(
-  'db.options' => $app['db.options']
+  'db.options' => include __DIR__.'/../config/db.php'
 ));
 
 return $app;
