@@ -15,6 +15,7 @@ $app->get('/', function () use ($app) {
 ;
 
 $app->get('/autocomplete', function (Request $request) use ($app) {
+  $callback = $request->get('callback'); // for jsonp
   $postcode = $request->get('postcode');
   $straatnaam = $request->get('straat');
   if (!$postcode && !$straatnaam) return new JsonResponse();
@@ -37,7 +38,10 @@ $app->get('/autocomplete', function (Request $request) use ($app) {
     ]);
   }
 
-  return new JsonResponse($result);
+  $response = new JsonResponse($result);
+  if ($callback) $response->setCallback($callback);
+
+  return $response;
 });
 
 $app->error(function (\Exception $e, Request $request, $code) use ($app) {
