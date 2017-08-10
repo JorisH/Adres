@@ -20,18 +20,18 @@ $app->get('/autocomplete', function (Request $request) use ($app) {
   if (!$postcode && !$straatnaam) return new JsonResponse();
 
   if ($postcode && $straatnaam){
-    $sql = "SELECT * FROM straat WHERE postcode LIKE :postcode AND naam LIKE :straatnaam";
+    $sql = "SELECT id, naam as value FROM straat WHERE postcode LIKE :postcode AND naam LIKE :straatnaam";
     $result = $app['db']->fetchAll($sql, [
       'postcode' => $postcode.'%',
       'straatnaam' => $straatnaam.'%'
     ]);
   } else if ($postcode) {
-    $sql = "SELECT * FROM gemeente WHERE code LIKE :postcode";
+    $sql = "SELECT id, CONCAT(code, ' ', naam) AS value, code, naam FROM gemeente WHERE code LIKE :postcode OR naam LIKE :postcode";
     $result = $app['db']->fetchAll($sql, [
       'postcode' => $postcode."%",
     ]);
   } else {
-    $sql = "SELECT * FROM straat WHERE naam LIKE :straatnaam";
+    $sql = "SELECT id, naam as value FROM straat WHERE naam LIKE :straatnaam";
     $result = $app['db']->fetchAll($sql, [
       'straatnaam' => $straatnaam.'%'
     ]);
