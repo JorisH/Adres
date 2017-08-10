@@ -14,34 +14,46 @@ $app->get('/', function () use ($app) {
 ->bind('homepage')
 ;
 
-$app->get('/autocomplete', function (Request $request) use ($app) {
-  $callback = $request->get('callback'); // for jsonp
+$app->get('/gemeentes', function (Request $request) use ($app) {
+  $q = $request->get('q');
+  $q = preg_replace('$[,.;/ ]+$', ' ', $q);
+  $terms = explode(' ', $q);
+  if (empty($terms)) return new JsonResponse();
+
+  $qIndexedTerms = array_combine(
+    array_map(function($index){
+      return "q$index";
+    }, array_keys($terms)),
+    array_map(function($term) {
+      return is_numeric($term) ? $term.'%' : '%'.$term.'%';
+    }, $terms)
+  );
+
+  $sqlWhereClause = implode(' AND ', array_map(function($qIndex){
+    return "(code LIKE :$qIndex OR naam LIKE :$qIndex)";
+  }, array_keys($qIndexedTerms)));
+
+  $sql = 'SELECT code, naam as gemeente FROM gemeente WHERE ' . $sqlWhereClause;
+
+  $result = $app['db']->fetchAll($sql, $qIndexedTerms);
+
+  return new JsonResponse($result);
+});
+
+$app->get('/straten', function (Request $request) use ($app) {
+  $q = $request->get('q');
+  if (!$q) return new JsonResponse();
+
   $postcode = $request->get('postcode');
-  $straatnaam = $request->get('straat');
-  if (!$postcode && !$straatnaam) return new JsonResponse();
 
-  if ($postcode && $straatnaam){
-    $sql = "SELECT id, naam as value FROM straat WHERE postcode LIKE :postcode AND naam LIKE :straatnaam";
-    $result = $app['db']->fetchAll($sql, [
-      'postcode' => $postcode.'%',
-      'straatnaam' => $straatnaam.'%'
-    ]);
-  } else if ($postcode) {
-    $sql = "SELECT id, CONCAT(code, ' ', naam) AS value, code, naam FROM gemeente WHERE code LIKE :postcode OR naam LIKE :postcode";
-    $result = $app['db']->fetchAll($sql, [
-      'postcode' => $postcode."%",
-    ]);
-  } else {
-    $sql = "SELECT id, naam as value FROM straat WHERE naam LIKE :straatnaam";
-    $result = $app['db']->fetchAll($sql, [
-      'straatnaam' => $straatnaam.'%'
-    ]);
-  }
+  $sql = "SELECT naam AS straat FROM straat WHERE postcode = :postcode AND naam LIKE :q";
 
-  $response = new JsonResponse($result);
-  if ($callback) $response->setCallback($callback);
+  $result = $app['db']->fetchAll($sql, [
+    'postcode' => $postcode,
+    'q' => "%$q%"
+  ]);
 
-  return $response;
+  return new JsonResponse($result);
 });
 
 $app->error(function (\Exception $e, Request $request, $code) use ($app) {
