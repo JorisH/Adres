@@ -1,46 +1,76 @@
 <?php
 
-use Symfony\Component\HttpFoundation\Request;
+namespace Tactics;
+
+use Silex\Application;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 
-$app->get('/gemeentes', function (Request $request) use ($app) {
-  $q = $request->get('q');
-  $q = preg_replace('$[,.;/ ]+$', ' ', $q);
-  $terms = explode(' ', $q);
-  if (empty($terms)) return new JsonResponse();
+/** @var Application $app */
+$app->get('/gemeentes', 'Tactics\\Adres::gemeentes');
+$app->get('/straten', 'Tactics\\Adres::straten');
 
-  $qIndexedTerms = array_combine(
-    array_map(function($index){
-      return "q$index";
-    }, array_keys($terms)),
-    array_map(function($term) {
-      return is_numeric($term) ? $term.'%' : '%'.$term.'%';
-    }, $terms)
-  );
+class Adres
+{
+  public function gemeentes(Request $request, Application $app)
+  {
+    $q = $request->get('q');
+    $q = preg_replace('$[,.;/ ]+$', ' ', $q);
+    $terms = explode(' ', $q);
+    if (empty($terms)) return new JsonResponse();
 
-  $sqlWhereClause = implode(' AND ', array_map(function($qIndex){
-    return "(code LIKE :$qIndex OR naam LIKE :$qIndex)";
-  }, array_keys($qIndexedTerms)));
+    $querybuilder = $this->getQueryBuilder($app)
+      ->select('code', 'naam as gemeente')
+      ->from('gemeente');
 
-  $sql = 'SELECT code, naam as gemeente FROM gemeente WHERE ' . $sqlWhereClause;
+    foreach ($terms as $index => $value) {
+      $querybuilder
+        ->andWhere(
+          $querybuilder->expr()->orX(
+            $querybuilder->expr()->like('code', ":q$index"),
+            $querybuilder->expr()->like('naam', ":q$index")
+          ))
+        ->setParameter(":q$index", is_numeric($value) ? $value . '%' : '%' . $value . '%');
+    }
 
-  $result = $app['db']->fetchAll($sql, $qIndexedTerms);
+    $result = $querybuilder->execute()->fetchAll();
 
-  return new JsonResponse($result);
-});
+    return new JsonResponse($result);
+  }
 
-$app->get('/straten', function (Request $request) use ($app) {
-  $q = $request->get('q');
-  if (!$q) return new JsonResponse();
+  public function straten(Request $request, Application $app)
+  {
+    $q = $request->get('q');
+    if (!$q) return new JsonResponse();
 
-  $postcode = $request->get('postcode');
+    $queryBuilder = $this->getQueryBuilder($app);
+    $result = $queryBuilder
+      ->select('naam as straat')
+      ->from('straat')
+      ->where(
+        $queryBuilder->expr()->andX(
+          $queryBuilder->expr()->eq('postcode', ":postcode"),
+          $queryBuilder->expr()->like('naam', ":q")
+        ))
+      ->setParameters([
+          'postcode' => $request->get('postcode'),
+          'q' => "%$q%"
+        ])
+      ->execute()
+      ->fetchAll();
 
-  $sql = "SELECT naam AS straat FROM straat WHERE postcode = :postcode AND naam LIKE :q";
+    return new JsonResponse($result);
+  }
 
-  $result = $app['db']->fetchAll($sql, [
-    'postcode' => $postcode,
-    'q' => "%$q%"
-  ]);
+  /**
+   * @param Application $app
+   * @return \Doctrine\DBAL\Query\QueryBuilder
+   */
+  private function getQueryBuilder(Application $app)
+  {
+    /** @var \Doctrine\DBAL\Connection $conn */
+    $conn = $app['db'];
 
-  return new JsonResponse($result);
-});
+    return $conn->createQueryBuilder();
+  }
+}
