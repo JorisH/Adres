@@ -16,6 +16,8 @@ class Adres
   {
     $q = $request->get('q');
     $q = preg_replace('$[,.;/ ]+$', ' ', $q);
+    // replace ipad/iphone curly single quotes by straight quotes
+    $q = str_replace(['‘', '’'], "'", html_entity_decode($q));
     $terms = explode(' ', $q);
     if (empty($terms)) return new JsonResponse();
 
@@ -41,6 +43,8 @@ class Adres
   public function straten(Request $request, Application $app)
   {
     $q = $request->get('q');
+    // replace ipad/iphone curly single quotes by straight quotes
+    $q = str_replace(['‘', '’'], "'", html_entity_decode($q));
     if (!$q) return new JsonResponse();
 
     $queryBuilder = $this->getQueryBuilder($app);
